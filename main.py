@@ -1,173 +1,234 @@
 """
-CMPS 2200  Assignment 2.
-See assignment-02.md for details.
+CMPS 2200 Homework Assignment 2.
+Refer to homework-02.md for comprehensive instructions.
 """
 from collections import defaultdict
 import math
 
-#### Iterative solution
-def parens_match_iterative(mylist):
-    """
-    Implement the iterative solution to the parens matching problem.
-    This function should call `iterate` using the `parens_update` function.
-    
-    Params:
-      mylist...a list of strings
-    Returns
-      True if the parenthesis are matched, False otherwise
-      
-    e.g.,
-    >>>parens_match_iterative(['(', 'a', ')'])
-    True
-    >>>parens_match_iterative(['('])
-    False
-    """
-    ### TODO
-    return iterate(parens_update, 0, mylist) == 0
-    ###
 
-
-def parens_update(current_output, next_input):
+#### Iterative approach
+def check_brackets_iterative(sequence):
     """
-    This function will be passed to the `iterate` function to 
-    solve the balanced parenthesis problem.
-    
-    Like all functions used by iterate, it takes in:
-    current_output....the cumulative output thus far (e.g., the running sum when doing addition)
-    next_input........the next value in the input
-    
+    Implement the iterative approach to validate matching brackets.
+    This function uses `process_sequence` with the `bracket_validator` function.
+
+    Parameters:
+      sequence...a list of characters to check
     Returns:
-      the updated value of `current_output`
-    """
-    ###TODO
-    if current_output == -math.inf:  # in an invalid state; carry it forward
-        return current_output
-    if next_input == '(':            # new open parens 
-        return current_output + 1
-    elif next_input == ')':          # new close parens
-        if current_output <= 0:      # close before an open -> invalid
-            return -math.inf
-        else:                        # valid
-            return current_output - 1
-    else:                            # ignore non-parens input
-        return current_output
-    ###
+      True if all brackets are properly matched, False otherwise
 
-
-
-
-
-#### Scan solution
-
-def parens_match_scan(mylist):
-    """
-    Implement a solution to the parens matching problem using `scan`.
-    This function should make one call each to `scan`, `map`, and `reduce`
-    
-    Params:
-      mylist...a list of strings
-    Returns
-      True if the parenthesis are matched, False otherwise
-      
-    e.g.,
-    >>>parens_match_scan(['(', 'a', ')'])
+    Examples:
+    >>> check_brackets_iterative(['(', 'x', ')'])
     True
-    >>>parens_match_scan(['('])
+    >>> check_brackets_iterative(['('])
     False
-    
     """
-    ###TODO
-    history, last = scan(plus, 0, list(map(paren_map, mylist)))
-    return last == 0 and reduce(min_f, 0, history) >= 0
+    ### Implementation
+    return iterate(bracket_validator, 0, sequence) == 0
     ###
 
-def scan(f, id_, a):
+
+def bracket_validator(accumulated_value, current_char):
     """
-    This is a horribly inefficient implementation of scan
-    only to understand what it does.
-    We saw a more efficient version in class. You can assume
-    the more efficient version is used for analyzing work/span.
+    This function will be passed to the `process_sequence` function to 
+    validate bracket matching.
+
+    As with all functions used by process_sequence, it accepts:
+    accumulated_value....the running total so far (e.g., the running count when checking brackets)
+    current_char........the next character in the sequence
+
+    Returns:
+      the updated accumulated_value
+    """
+    ### Implementation
+    if accumulated_value == -math.inf:  # already in error state, propagate it
+        return accumulated_value
+    
+    if current_char == ')':           # found closing bracket
+        if accumulated_value <= 0:    # no matching open bracket available
+            return -math.inf          # indicate error state
+        else:                         # match found
+            return accumulated_value - 1  # decrease open bracket count
+    elif current_char == '(':         # found opening bracket
+        return accumulated_value + 1  # increase open bracket count
+    else:                             # character is not a bracket
+        return accumulated_value      # no change to counter
+    ###
+
+def iterate(func, initial, data):
+    """
+    Process a sequence by applying a function to each element sequentially.
+    
+    Parameters:
+        func: function that takes two arguments (accumulated value, current element)
+        initial: starting value for accumulation
+        data: list of elements to process
+        
+    Returns:
+        The final accumulated value
+    """
+    if len(data) == 0:
+        return initial
+    else:
+        return iterate(func, func(initial, data[0]), data[1:])
+
+
+def fold(func, base_value, data):
+    if len(data) == 0:
+        return base_value
+    elif len(data) == 1:
+        return func(base_value, data[0])
+    else:
+        midpoint = len(data) // 2
+        return func(fold(func, base_value, data[:midpoint]), 
+                    fold(func, base_value, data[midpoint:]))
+
+
+
+#### Parallel solution using scan
+def add(a, b):
+    """
+    Simple addition function
+    """
+    return a + b
+    
+def check_brackets_scan(sequence):
+    """
+    Implement a solution to bracket matching using `parallel_scan`.
+    This function makes one call each to `parallel_scan`, `transform`, and `fold`
+
+    Parameters:
+      sequence...a list of characters to check
+    Returns:
+      True if all brackets are properly matched, False otherwise
+
+    Examples:
+    >>> check_brackets_scan(['(', 'x', ')'])
+    True
+    >>> check_brackets_scan(['('])
+    False
+    """
+    ### Implementation
+    running_sums, final_sum = parallel_scan(add, 0, list(map(bracket_value, sequence)))
+    return final_sum == 0 and fold(minimum, 0, running_sums) >= 0
+    ###
+
+def parallel_scan(func, base_value, data):
+    """
+    A simplified implementation of parallel scan
+    to demonstrate the concept.
+    A more efficient implementation would be used in practice.
     """
     return (
-            [reduce(f, id_, a[:i+1]) for i in range(len(a))],
-             reduce(f, id_, a)
+            [fold(func, base_value, data[:i+1]) for i in range(len(data))],
+             fold(func, base_value, data)
            )
 
-def paren_map(x):
+def bracket_value(char):
     """
-    Returns 1 if input is '(', -1 if ')', 0 otherwise.
-    This will be used by your `parens_match_scan` function.
-    
-    Params:
-       x....an element of the input to the parens match problem (e.g., '(' or 'a')
-       
-    >>>paren_map('(')
+    Converts brackets to numeric values for processing.
+    Returns 1 for '(', -1 for ')', and 0 for any other character.
+
+    Parameters:
+       char....a character from the input sequence
+
+    >>> bracket_value('(')
     1
-    >>>paren_map(')')
+    >>> bracket_value(')')
     -1
-    >>>paren_map('a')
+    >>> bracket_value('x')
     0
     """
-    if x == '(':
+    if char == '(':
         return 1
-    elif x == ')':
+    elif char == ')':
         return -1
     else:
         return 0
 
-def min_f(x,y):
+def minimum(a, b):
     """
-    Returns the min of x and y. Useful for `parens_match_scan`.
+    Returns the smaller of a and b. Used in `check_brackets_scan`.
     """
-    if x < y:
-        return x
-    return y
+    if a < b:
+        return a
+    return b
 
 
 
-#### Divide and conquer solution
+#### Divide and conquer approach
 
-def parens_match_dc(mylist):
+def check_brackets_dc(sequence):
     """
-    Calls parens_match_dc_helper. If the result is (0,0),
-    that means there are no unmatched parentheses, so the input is valid.
-    
+    Uses check_brackets_dc_worker. If the result is (0,0),
+    there are no unmatched brackets, so the input is valid.
+
     Returns:
-      True if parens_match_dc_helper returns (0,0); otherwise False
+      True if check_brackets_dc_worker returns (0,0); otherwise False
     """
-    # done.
-    n_unmatched_left, n_unmatched_right = parens_match_dc_helper(mylist)
-    return n_unmatched_left==0 and n_unmatched_right==0
+    # implementation
+    unmatched_right, unmatched_left = check_brackets_dc_worker(sequence)
+    return unmatched_right == 0 and unmatched_left == 0
 
-def parens_match_dc_helper(mylist):
+def check_brackets_dc_worker(sequence):
     """
-    Recursive, divide and conquer solution to the parens match problem.
-    
+    Recursive divide and conquer solution for bracket matching.
+
     Returns:
-      tuple (R, L), where R is the number of unmatched right parentheses, and
-      L is the number of unmatched left parentheses. This output is used by 
-      parens_match_dc to return the final True or False value
+      tuple (R, L), where R is the count of unmatched right brackets, and
+      L is the count of unmatched left brackets. This result is used by 
+      check_brackets_dc to determine the final validity
     """
-    ###TODO
+    ### Implementation
     # Base cases
-    if len(mylist) == 0:
-        return [0,0]
-    elif len(mylist) == 1:
-        if mylist[0] == '(':
-            return (0, 1) # one unmatched (
-        elif mylist[0] == ')':
-            return (1, 0) # one unmatched )    
+    if len(sequence) == 0:
+        return (0, 0)
+    elif len(sequence) == 1:
+        if sequence[0] == '(':
+            return (0, 1)  # one unpaired left bracket
+        elif sequence[0] == ')':
+            return (1, 0)  # one unpaired right bracket
         else:
-            return (0, 0)
-    i,j = parens_match_dc_helper(mylist[:len(mylist)//2])
-    k,l = parens_match_dc_helper(mylist[len(mylist)//2:])
-    # Combination:
-    # Return the tuple (R,L) using some combination of the values i,j,k,l defined above.
-    # This should be done in constant time.
-    if j > k:
-        return (i, l + j - k)
-    else:
-        return (i + k - j, l)
-    ###
-    
+            return (0, 0)  # non-bracket character
 
+    # Recursive division
+    midpoint = len(sequence) // 2
+    right1, left1 = check_brackets_dc_worker(sequence[:midpoint])
+    right2, left2 = check_brackets_dc_worker(sequence[midpoint:])
+
+    # Combine results
+    # Calculate net unmatched brackets from both halves
+    if left1 > right2:
+        return (right1, left2 + left1 - right2)
+    else:
+        return (right1 + right2 - left1, left2)
+    ###
+
+if __name__ == "__main__":
+    def verify_implementations():
+        test_inputs = [
+            (['(', 'x', ')'], True),
+            (['('], False),
+            ([')', '('], False),
+            (['(', '(', ')', ')'], True),
+            (['(', ')', '(', ')', '('], False),
+        ]
+
+        print("Evaluating check_brackets_iterative:")
+        for input_seq, expected_output in test_inputs:
+            actual_output = check_brackets_iterative(input_seq)
+            print(f"Input: {input_seq} | Expected: {expected_output} | Result: {actual_output} | {'SUCCESS' if actual_output == expected_output else 'FAILURE'}")
+
+        print("\nEvaluating check_brackets_scan:")
+        for input_seq, expected_output in test_inputs:
+            actual_output = check_brackets_scan(input_seq)
+            print(f"Input: {input_seq} | Expected: {expected_output} | Result: {actual_output} | {'SUCCESS' if actual_output == expected_output else 'FAILURE'}")
+
+        print("\nEvaluating check_brackets_dc:")
+        for input_seq, expected_output in test_inputs:
+            actual_output = check_brackets_dc(input_seq)
+            print(f"Input: {input_seq} | Expected: {expected_output} | Result: {actual_output} | {'SUCCESS' if actual_output == expected_output else 'FAILURE'}")
+
+        print("\nAll verification complete.")
+
+    verify_implementations()
